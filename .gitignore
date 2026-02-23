@@ -1,3 +1,12 @@
+# Python
 __pycache__/
 *.pyc
 *.pyo
+
+# Environment — never commit real credentials
+.env
+
+# Agent logs — contain conversation history and can grow unboundedly
+# Keep log.md files local; they are not needed in source control
+agents/*/log.md
+log.md
