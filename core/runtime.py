@@ -51,6 +51,7 @@ MAX_STEPS = 15
 
 def load_agent(agent_name: str) -> dict:
     """Carrega um agente a partir de seus arquivos .md."""
+    agent_name = agent_name.lower().strip()
     agent_dir = os.path.join(AGENTS_DIR, agent_name)
 
     if not os.path.isdir(agent_dir):
@@ -163,6 +164,15 @@ aqui
 Quando terminar completamente a tarefa, responda com:
 
 DONE: sua resposta final aqui
+
+---
+## REGRA OBRIGATÓRIA — Ações reais apenas via TOOL
+
+Você NÃO tem capacidade de modificar arquivos, criar agentes ou executar código por conta própria.
+A ÚNICA forma de realizar ações é chamando uma TOOL com o formato acima.
+Se o pedido requer escrever/modificar/criar algo, você DEVE emitir TOOL: antes de responder DONE:.
+Ler um arquivo (read_file) NÃO é modificá-lo. Se o pedido é para adicionar conteúdo, chame append_file ou write_file.
+NUNCA responda DONE: dizendo que algo foi feito se você não chamou a TOOL correspondente.
 
 ---
 ## Valores do Sistema
@@ -410,6 +420,35 @@ def call_llm(system_prompt: str, messages: list, model: str = None) -> str:
         return f"ERRO ao chamar LLM: {e}"
 
 
+WRITE_TOOLS = {"write_file", "append_file", "register_tool", "spawn_agent"}
+
+WRITE_CLAIM_KEYWORDS = [
+    "adicionad", "escrit", "registrad", "criad", "salv", "gravad",
+    "added", "written", "created", "saved", "registered", "appended",
+    "proposal added", "proposta adicionada", "arquivo atualizado",
+    "file updated", "file written", "file created",
+]
+
+WRITE_REQUEST_KEYWORDS = [
+    "add to", "adicione", "adicionar", "escreva", "escrever",
+    "write to", "write in", "append", "create", "crie", "criar",
+    "salve", "salvar", "save", "registre", "registrar", "modify",
+    "modifique", "modificar", "update", "atualize", "atualizar",
+]
+
+
+def _message_requests_write(user_message: str) -> bool:
+    """Checks if the user message is asking for a write/modify action."""
+    lower = user_message.lower()
+    return any(kw in lower for kw in WRITE_REQUEST_KEYWORDS)
+
+
+def _response_claims_write(response: str) -> bool:
+    """Checks if the DONE response claims to have written/modified something."""
+    lower = response.lower()
+    return any(kw in lower for kw in WRITE_CLAIM_KEYWORDS)
+
+
 def run_agent(agent_name: str, user_message: str, model: str = "llama3.1") -> str:
     """
     Executa o loop ReAct completo para um agente.
@@ -419,7 +458,7 @@ def run_agent(agent_name: str, user_message: str, model: str = "llama3.1") -> st
     3. Envia mensagem → LLM
     4. Parseia resposta (TOOL ou DONE)
     5. Se TOOL: executa, injeta resultado, repete
-    6. Se DONE: loga e retorna
+    6. Se DONE: loga e retorna (with hallucination guard)
     7. Se max_steps: retorna com aviso
     """
     # 1. Carregar agente
@@ -436,6 +475,10 @@ def run_agent(agent_name: str, user_message: str, model: str = "llama3.1") -> st
 
     log_action(agent, f"- Recebeu mensagem: {user_message[:200]}...")
 
+    # Track which tool categories were actually called
+    called_write_tool = False
+    hallucination_retries = 0
+
     # 5. Loop ReAct
     for step in range(1, MAX_STEPS + 1):
         # Chamar LLM
@@ -449,8 +492,31 @@ def run_agent(agent_name: str, user_message: str, model: str = "llama3.1") -> st
         parsed = parse_llm_response(llm_response)
 
         if parsed["type"] == "DONE":
-            # Tarefa concluída
             final_response = parsed["content"]
+
+            if (
+                not called_write_tool
+                and hallucination_retries < 2
+                and _message_requests_write(user_message)
+                and _response_claims_write(final_response)
+            ):
+                hallucination_retries += 1
+                log_action(
+                    agent,
+                    f"- HALLUCINATION GUARD (step {step}): Agent claimed write "
+                    f"without calling a write tool. Retrying. (attempt {hallucination_retries})"
+                )
+                correction = (
+                    "ERRO: Você disse que realizou uma ação de escrita/modificação, "
+                    "mas NENHUMA tool de escrita foi chamada nesta sessão. "
+                    "Ler um arquivo (read_file) NÃO é o mesmo que modificá-lo. "
+                    "Você DEVE chamar write_file ou append_file com o conteúdo correto "
+                    "ANTES de responder DONE. Faça a chamada TOOL agora."
+                )
+                messages.append({"role": "assistant", "content": llm_response})
+                messages.append({"role": "user", "content": correction})
+                continue
+
             log_action(
                 agent,
                 f"- Tarefa concluída (step {step})\n- Resposta: {final_response[:300]}..."
@@ -460,7 +526,9 @@ def run_agent(agent_name: str, user_message: str, model: str = "llama3.1") -> st
         elif parsed["type"] == "TOOL":
             tool_name = parsed["tool"]
             tool_args = parsed["args"]
-            reasoning = parsed.get("reasoning", "")
+
+            if tool_name in WRITE_TOOLS:
+                called_write_tool = True
 
             log_action(
                 agent,

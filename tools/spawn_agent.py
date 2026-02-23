@@ -33,6 +33,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AGENTS_DIR = os.path.join(BASE_DIR, "agents")
 
 
+BASE_TOOLS = ["read_file", "append_file", "list_dir"]
+
+
 def run(name: str, purpose: str, tools: list = None, personality: str = "") -> str:
     """Cria a pasta do agente com seus 5 arquivos .md."""
     if tools is None:
@@ -47,9 +50,13 @@ def run(name: str, purpose: str, tools: list = None, personality: str = "") -> s
     if os.path.exists(agent_dir):
         return f"ERRO: Agente '{safe_name}' já existe em agents/{safe_name}/."
 
+    specific_tools = [t for t in tools if t not in BASE_TOOLS]
+    all_tools = BASE_TOOLS + specific_tools
+
     today = datetime.now().strftime("%Y-%m-%d")
-    tools_list = ", ".join(tools) if tools else "nenhuma"
-    tools_md_items = "\n".join(f"- `{t}`" for t in tools) if tools else "- (nenhuma tool atribuída)"
+    tools_list = ", ".join(all_tools)
+    base_md_items = "\n".join(f"- `{t}`" for t in BASE_TOOLS)
+    specific_md_items = "\n".join(f"- `{t}`" for t in specific_tools) if specific_tools else "- (nenhuma tool específica)"
 
     if not personality:
         personality = "Focado, eficiente, comunica resultados com clareza."
@@ -98,6 +105,12 @@ Você é o agente **{safe_name}** do Gray Ocean framework.
 4. Siga os valores do VALUES.md em todas as decisões
 5. Prefira soluções simples sobre soluções complexas
 
+## REGRA CRÍTICA — Nunca fingir ações
+Você NÃO pode modificar arquivos apenas "pensando" nisso. Para qualquer mudança:
+- Para CRIAR/SOBRESCREVER: use write_file com TOOL/ARGS
+- Para ADICIONAR conteúdo: use append_file com TOOL/ARGS
+Ler um arquivo NÃO é modificá-lo. NUNCA diga "feito" sem ter chamado a tool.
+
 ## Formato de Resposta
 Quando precisar usar uma tool, responda EXATAMENTE neste formato:
 
@@ -114,7 +127,11 @@ DONE: sua resposta final aqui
 
 Este agente tem acesso às seguintes tools:
 
-{tools_md_items}
+## Tools Base (todos os agentes)
+{base_md_items}
+
+## Tools Específicas
+{specific_md_items}
 
 > Princípio de menor privilégio: este agente acessa APENAS estas tools.
 > Para solicitar acesso a tools adicionais, a mudança deve ser aprovada.
