@@ -67,7 +67,10 @@ Everything is stored in Markdown files — readable by both humans and agents, v
 
 ## Installation
 
-### Automated Setup
+git clone https://github.com/fabiokatsumi/gray_ocean.git
+cd gray_ocean
+
+### Automated Setup (Isolated with uv)
 
 ```bash
 git clone https://github.com/fabiokatsumi/gray_ocean.git
@@ -75,10 +78,26 @@ cd gray_ocean
 bash setup.sh
 ```
 
+> **Note:** The setup script uses [uv](https://github.com/astral-sh/uv) to create an isolated Python environment (`.venv`). All commands should be run inside this environment for full isolation and reproducibility.
+
 The setup script will:
 1. Verify Python 3 is installed
-2. Install Ollama (if not already present)
-3. Download the `llama3.1` model
+2. Install [uv](https://github.com/astral-sh/uv) if not present
+3. Create a `.venv` isolated environment with uv
+4. Install Ollama (if not already present)
+5. Download the `llama3.1` model
+
+To activate the environment:
+
+```bash
+source .venv/bin/activate
+```
+
+Then run Gray Ocean as usual:
+
+```bash
+python3 gray_ocean.py "your message here"
+```
 
 ### Manual Setup
 

@@ -19,6 +19,28 @@ import json
 import importlib.util
 from datetime import datetime
 
+# --- LLM Provider config ---
+def load_env():
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    env = {}
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    env[k.strip()] = v.strip()
+    return env
+
+ENV = load_env()
+LLM_PROVIDER = ENV.get("LLM_PROVIDER", "ollama").lower()
+OLLAMA_HOST = ENV.get("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA_MODEL = ENV.get("OLLAMA_MODEL", "llama3.1:8b")
+OPENAI_API_KEY = ENV.get("OPENAI_API_KEY")
+OPENAI_MODEL = ENV.get("OPENAI_MODEL", "gpt-4")
+OPENROUTER_API_KEY = ENV.get("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = ENV.get("OPENROUTER_MODEL", "meta-llama-3")
+
 # Raiz do gray_ocean
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOOLS_DIR = os.path.join(BASE_DIR, "tools")
@@ -301,31 +323,83 @@ def log_action(agent: dict, action: str):
         pass  # Log não deve interromper a execução
 
 
-def call_llm(system_prompt: str, messages: list, model: str = "llama3.1") -> str:
-    """Chama o LLM via Ollama com histórico de mensagens."""
+def call_llm(system_prompt: str, messages: list, model: str = None) -> str:
+    """Chama o LLM via provider definido em .env (Ollama, OpenAI, OpenRouter)."""
     import urllib.request
     import urllib.error
+    import requests
 
-    url = "http://localhost:11434/api/chat"
+    provider = LLM_PROVIDER
+    if model is None:
+        if provider == "ollama":
+            model = OLLAMA_MODEL
+        elif provider == "openai":
+            model = OPENAI_MODEL
+        elif provider == "openrouter":
+            model = OPENROUTER_MODEL
 
-    payload = {
-        "model": model,
-        "messages": [{"role": "system", "content": system_prompt}] + messages,
-        "stream": False,
-    }
+    # Prepare messages for OpenAI/OpenRouter
+    openai_msgs = []
+    for m in [{"role": "system", "content": system_prompt}] + messages:
+        openai_msgs.append({"role": m["role"], "content": m["content"]})
 
     try:
-        data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={"Content-Type": "application/json"},
-        )
+        if provider == "ollama":
+            url = f"{OLLAMA_HOST}/api/chat"
+            payload = {
+                "model": model,
+                "messages": [{"role": "system", "content": system_prompt}] + messages,
+                "stream": False,
+            }
+            data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                url,
+                data=data,
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=120) as response:
+                result = json.loads(response.read().decode("utf-8"))
+                message = result.get("message", {})
+                return message.get("content", "ERRO: Resposta vazia do LLM.")
 
-        with urllib.request.urlopen(req, timeout=120) as response:
-            result = json.loads(response.read().decode("utf-8"))
-            message = result.get("message", {})
-            return message.get("content", "ERRO: Resposta vazia do LLM.")
+        elif provider == "openai":
+            url = "https://api.openai.com/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": model,
+                "messages": openai_msgs,
+                "temperature": 0.7,
+                "stream": False,
+            }
+            resp = requests.post(url, headers=headers, json=payload, timeout=120)
+            if resp.status_code != 200:
+                return f"ERRO: OpenAI API {resp.status_code}: {resp.text}"
+            result = resp.json()
+            return result["choices"][0]["message"]["content"]
+
+        elif provider == "openrouter":
+            url = "https://openrouter.ai/api/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": model,
+                "messages": openai_msgs,
+                "temperature": 0.7,
+                "stream": False,
+            }
+            resp = requests.post(url, headers=headers, json=payload, timeout=120)
+            if resp.status_code != 200:
+                return f"ERRO: OpenRouter API {resp.status_code}: {resp.text}"
+            result = resp.json()
+            return result["choices"][0]["message"]["content"]
+
+        else:
+            return f"ERRO: LLM_PROVIDER '{provider}' não suportado."
 
     except urllib.error.URLError as e:
         return (
