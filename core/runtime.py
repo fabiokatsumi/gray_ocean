@@ -48,10 +48,19 @@ AGENTS_DIR = os.path.join(BASE_DIR, "agents")
 
 MAX_STEPS = 15
 
+# In-memory caches — populated once per process, avoid re-reading files on every invocation
+_agent_cache: dict = {}
+_tool_module_cache: dict = {}
+_system_prompt_cache: dict = {}
+_values_cache: str = None
+
 
 def load_agent(agent_name: str) -> dict:
-    """Carrega um agente a partir de seus arquivos .md."""
+    """Carrega um agente a partir de seus arquivos .md (cached per process)."""
     agent_name = agent_name.lower().strip()
+    if agent_name in _agent_cache:
+        return _agent_cache[agent_name]
+
     agent_dir = os.path.join(AGENTS_DIR, agent_name)
 
     if not os.path.isdir(agent_dir):
@@ -75,6 +84,7 @@ def load_agent(agent_name: str) -> dict:
         else:
             agent[key] = ""
 
+    _agent_cache[agent_name] = agent
     return agent
 
 
@@ -90,7 +100,10 @@ def parse_authorized_tools(tools_md: str) -> list:
 
 
 def load_tool(tool_name: str):
-    """Carrega dinamicamente um módulo de tool."""
+    """Carrega dinamicamente um módulo de tool (cached per process)."""
+    if tool_name in _tool_module_cache:
+        return _tool_module_cache[tool_name]
+
     tool_path = os.path.join(TOOLS_DIR, f"{tool_name}.py")
 
     if not os.path.exists(tool_path):
@@ -99,6 +112,7 @@ def load_tool(tool_name: str):
     spec = importlib.util.spec_from_file_location(tool_name, tool_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    _tool_module_cache[tool_name] = module
     return module
 
 
@@ -120,15 +134,23 @@ def build_tools_description(tool_names: list) -> str:
 
 
 def build_system_prompt(agent: dict, tool_names: list) -> str:
-    """Monta o system prompt completo para o agente."""
+    """Monta o system prompt completo para o agente (cached per agent+tools combo)."""
+    global _values_cache
+    cache_key = agent["name"] + "|" + ",".join(sorted(tool_names))
+    if cache_key in _system_prompt_cache:
+        return _system_prompt_cache[cache_key]
+
     tools_desc = build_tools_description(tool_names)
 
-    # Carregar VALUES.md se existir
-    values_path = os.path.join(BASE_DIR, "VALUES.md")
-    values = ""
-    if os.path.exists(values_path):
-        with open(values_path, "r", encoding="utf-8") as f:
-            values = f.read()
+    # Carregar VALUES.md uma única vez por processo
+    if _values_cache is None:
+        values_path = os.path.join(BASE_DIR, "VALUES.md")
+        if os.path.exists(values_path):
+            with open(values_path, "r", encoding="utf-8") as f:
+                _values_cache = f.read()
+        else:
+            _values_cache = ""
+    values = _values_cache
 
     prompt = f"""{agent.get('system_prompt', '')}
 
@@ -178,6 +200,7 @@ NUNCA responda DONE: dizendo que algo foi feito se você não chamou a TOOL corr
 ## Valores do Sistema
 {values}
 """
+    _system_prompt_cache[cache_key] = prompt
     return prompt
 
 
@@ -334,7 +357,7 @@ def log_action(agent: dict, action: str):
 
 
 def call_llm(system_prompt: str, messages: list, model: str = None) -> str:
-    """Chama o LLM via provider definido em .env (Ollama, OpenAI, OpenRouter)."""
+    """Chama o LLM via provider definido em .env, com streaming para stdout."""
     import urllib.request
     import urllib.error
     import requests
@@ -348,74 +371,82 @@ def call_llm(system_prompt: str, messages: list, model: str = None) -> str:
         elif provider == "openrouter":
             model = OPENROUTER_MODEL
 
-    # Prepare messages for OpenAI/OpenRouter
-    openai_msgs = []
-    for m in [{"role": "system", "content": system_prompt}] + messages:
-        openai_msgs.append({"role": m["role"], "content": m["content"]})
+    # System prompt sent once as the first message; messages = current session history only
+    all_msgs = [{"role": "system", "content": system_prompt}] + messages
 
     try:
         if provider == "ollama":
             url = f"{OLLAMA_HOST}/api/chat"
-            payload = {
-                "model": model,
-                "messages": [{"role": "system", "content": system_prompt}] + messages,
-                "stream": False,
-            }
+            payload = {"model": model, "messages": all_msgs, "stream": True}
             data = json.dumps(payload).encode("utf-8")
             req = urllib.request.Request(
-                url,
-                data=data,
-                headers={"Content-Type": "application/json"},
+                url, data=data, headers={"Content-Type": "application/json"}
             )
+            full_content = ""
             with urllib.request.urlopen(req, timeout=120) as response:
-                result = json.loads(response.read().decode("utf-8"))
-                message = result.get("message", {})
-                return message.get("content", "ERRO: Resposta vazia do LLM.")
+                for raw_line in response:
+                    line = raw_line.decode("utf-8").strip()
+                    if not line:
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    delta = chunk.get("message", {}).get("content", "")
+                    if delta:
+                        print(delta, end="", flush=True)
+                        full_content += delta
+                    if chunk.get("done", False):
+                        break
+            print()
+            return full_content or "ERRO: Resposta vazia do LLM."
 
-        elif provider == "openai":
-            url = "https://api.openai.com/v1/chat/completions"
+        elif provider in ("openai", "openrouter"):
+            if provider == "openai":
+                url = "https://api.openai.com/v1/chat/completions"
+                api_key = OPENAI_API_KEY
+            else:
+                url = "https://openrouter.ai/api/v1/chat/completions"
+                api_key = OPENROUTER_API_KEY
             headers = {
-                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             }
             payload = {
                 "model": model,
-                "messages": openai_msgs,
+                "messages": all_msgs,
                 "temperature": 0.7,
-                "stream": False,
+                "stream": True,
             }
-            resp = requests.post(url, headers=headers, json=payload, timeout=120)
+            resp = requests.post(url, headers=headers, json=payload, timeout=120, stream=True)
             if resp.status_code != 200:
-                return f"ERRO: OpenAI API {resp.status_code}: {resp.text}"
-            result = resp.json()
-            return result["choices"][0]["message"]["content"]
-
-        elif provider == "openrouter":
-            url = "https://openrouter.ai/api/v1/chat/completions"
-            headers = {
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json",
-            }
-            payload = {
-                "model": model,
-                "messages": openai_msgs,
-                "temperature": 0.7,
-                "stream": False,
-            }
-            resp = requests.post(url, headers=headers, json=payload, timeout=120)
-            if resp.status_code != 200:
-                return f"ERRO: OpenRouter API {resp.status_code}: {resp.text}"
-            result = resp.json()
-            return result["choices"][0]["message"]["content"]
+                return f"ERRO: {provider} API {resp.status_code}: {resp.text}"
+            full_content = ""
+            for raw_line in resp.iter_lines():
+                if not raw_line:
+                    continue
+                line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
+                if not line.startswith("data: "):
+                    continue
+                data_str = line[6:]
+                if data_str.strip() == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data_str)
+                    delta = chunk["choices"][0].get("delta", {}).get("content") or ""
+                    if delta:
+                        print(delta, end="", flush=True)
+                        full_content += delta
+                except (json.JSONDecodeError, KeyError, IndexError):
+                    pass
+            print()
+            return full_content or "ERRO: Resposta vazia do LLM."
 
         else:
             return f"ERRO: LLM_PROVIDER '{provider}' não suportado."
 
     except urllib.error.URLError as e:
-        return (
-            f"ERRO: Não foi possível conectar ao Ollama. "
-            f"Verifique se o Ollama está rodando (ollama serve). Detalhe: {e}"
-        )
+        return f"ERRO: Não foi possível conectar ao LLM. Detalhe: {e}"
     except Exception as e:
         return f"ERRO ao chamar LLM: {e}"
 
@@ -449,7 +480,7 @@ def _response_claims_write(response: str) -> bool:
     return any(kw in lower for kw in WRITE_CLAIM_KEYWORDS)
 
 
-def run_agent(agent_name: str, user_message: str, model: str = "llama3.1") -> str:
+def run_agent(agent_name: str, user_message: str, model: str = None) -> str:
     """
     Executa o loop ReAct completo para um agente.
 
@@ -485,6 +516,7 @@ def run_agent(agent_name: str, user_message: str, model: str = "llama3.1") -> st
         llm_response = call_llm(system_prompt, messages, model)
 
         if llm_response.startswith("ERRO:"):
+            print(llm_response, file=sys.stderr)
             log_action(agent, f"- ERRO no LLM (step {step}): {llm_response}")
             return llm_response
 

@@ -116,8 +116,8 @@ def interactive_mode(agent: str, model: str):
 
         print()
         try:
-            response = run_agent(target_agent, message, model=model)
-            print(f"  [{target_agent}] {response}\n")
+            run_agent(target_agent, message, model=model)
+            print()  # blank line after streamed response
         except FileNotFoundError as e:
             print(f"  ERRO: {e}\n")
         except Exception as e:
@@ -132,8 +132,8 @@ def single_message(agent: str, message: str, model: str):
         message = remaining
 
     try:
-        response = run_agent(agent, message, model=model)
-        print(response)
+        run_agent(agent, message, model=model)
+        # Response is streamed to stdout by call_llm(); no re-print needed
     except FileNotFoundError as e:
         print(f"ERRO: {e}", file=sys.stderr)
         sys.exit(1)
@@ -141,12 +141,6 @@ def single_message(agent: str, message: str, model: str):
         print(f"ERRO inesperado: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc()
-        if hasattr(e, 'reason') or 'ollama' in str(e).lower():
-            print("[DEBUG] Verifique se o Ollama está rodando e acessível em http://localhost:11434")
-            print("[DEBUG] Detalhes do erro:", repr(e))
-            print("[DEBUG] Variáveis de ambiente relevantes:")
-            print("  OLLAMA_HOST:", os.environ.get('OLLAMA_HOST'))
-            print("  OLLAMA_BASE_URL:", os.environ.get('OLLAMA_BASE_URL'))
         sys.exit(1)
 
 
