@@ -1,11 +1,11 @@
 """
-run_python — Executa código Python em sandbox.
+run_python — Executes Python code in a sandbox.
 
-Analogia Unix: exec / subprocess
-Input: code (str) — código Python a ser executado
-Output: stdout + stderr da execução
+Unix analog: exec / subprocess
+Input: code (str) — Python code to be executed
+Output: stdout + stderr from execution
 
-Exemplo de uso:
+Usage example:
     result = run(code="print(2 + 2)")
 """
 
@@ -15,18 +15,18 @@ import tempfile
 import os
 
 TOOL_NAME = "run_python"
-TOOL_DESCRIPTION = "Executa código Python em sandbox. Recebe 'code' (código Python a executar)."
+TOOL_DESCRIPTION = "Executes Python code in a sandbox. Receives 'code' (Python code to execute)."
 TOOL_PARAMETERS = {
-    "code": "Código Python a ser executado"
+    "code": "Python code to be executed"
 }
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def run(code: str) -> str:
-    """Executa código Python em um subprocesso isolado."""
+    """Executes Python code in an isolated subprocess."""
     try:
-        # Escreve o código em arquivo temporário
+        # Write the code to a temporary file
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".py", delete=False, encoding="utf-8"
         ) as f:
@@ -51,9 +51,9 @@ def run(code: str) -> str:
                 output += result.stderr
 
             if result.returncode != 0:
-                output = f"ERRO (código de saída {result.returncode}):\n{output}"
+                output = f"ERROR (exit code {result.returncode}):\n{output}"
             elif not output:
-                output = "OK: Código executado sem output."
+                output = "OK: Code executed with no output."
 
             return output
 
@@ -61,6 +61,6 @@ def run(code: str) -> str:
             os.unlink(tmp_path)
 
     except subprocess.TimeoutExpired:
-        return "ERRO: Timeout — execução excedeu 30 segundos."
+        return "ERROR: Timeout — execution exceeded 30 seconds."
     except Exception as e:
-        return f"ERRO ao executar código: {e}"
+        return f"ERROR executing code: {e}"

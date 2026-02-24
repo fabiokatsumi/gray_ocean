@@ -1,19 +1,19 @@
 """
-spawn_agent — Cria um novo agente no Gray Ocean.
+spawn_agent — Creates a new agent in Gray Ocean.
 
-Analogia Unix: fork + mkdir
-Input: name (str) — nome do agente
-       purpose (str) — propósito/missão do agente
-       tools (list[str]) — lista de nomes de tools autorizadas
-       personality (str, opcional) — traços de personalidade
-Output: confirmação ou erro
+Unix analog: fork + mkdir
+Input: name (str) — agent name
+       purpose (str) — agent purpose/mission
+       tools (list[str]) — list of authorized tool names
+       personality (str, optional) — personality traits
+Output: confirmation or error
 
-Exemplo de uso:
+Usage example:
     result = run(
         name="monitor",
-        purpose="Monitora mudanças em arquivos do gray ocean",
+        purpose="Monitors changes in gray ocean files",
         tools=["read_file", "list_dir", "append_file"],
-        personality="Vigilante, metódico, reporta anomalias com clareza"
+        personality="Vigilant, methodical, reports anomalies clearly"
     )
 """
 
@@ -21,12 +21,12 @@ import os
 from datetime import datetime
 
 TOOL_NAME = "spawn_agent"
-TOOL_DESCRIPTION = "Cria um novo agente com sua pasta e 5 arquivos .md. Recebe 'name', 'purpose', 'tools' (lista de tools autorizadas), e opcionalmente 'personality'."
+TOOL_DESCRIPTION = "Creates a new agent with its folder and 5 .md files. Receives 'name', 'purpose', 'tools' (list of authorized tools), and optionally 'personality'."
 TOOL_PARAMETERS = {
-    "name": "Nome do agente (usado como nome da pasta)",
-    "purpose": "Propósito/missão do agente",
-    "tools": "Lista de nomes de tools que o agente pode usar",
-    "personality": "(Opcional) Traços de personalidade do agente"
+    "name": "Agent name (used as folder name)",
+    "purpose": "Agent purpose/mission",
+    "tools": "List of tool names the agent can use",
+    "personality": "(Optional) Personality traits of the agent"
 }
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -37,18 +37,18 @@ BASE_TOOLS = ["read_file", "append_file", "list_dir"]
 
 
 def run(name: str, purpose: str, tools: list = None, personality: str = "") -> str:
-    """Cria a pasta do agente com seus 5 arquivos .md."""
+    """Creates the agent folder with its 5 .md files."""
     if tools is None:
         tools = []
 
-    # Validação
+    # Validation
     safe_name = name.lower().replace(" ", "_").replace("-", "_")
     if not safe_name.isidentifier():
-        return f"ERRO: Nome '{name}' inválido para agente."
+        return f"ERROR: Name '{name}' is invalid for an agent."
 
     agent_dir = os.path.join(AGENTS_DIR, safe_name)
     if os.path.exists(agent_dir):
-        return f"ERRO: Agente '{safe_name}' já existe em agents/{safe_name}/."
+        return f"ERROR: Agent '{safe_name}' already exists in agents/{safe_name}/."
 
     specific_tools = [t for t in tools if t not in BASE_TOOLS]
     all_tools = BASE_TOOLS + specific_tools
@@ -56,92 +56,92 @@ def run(name: str, purpose: str, tools: list = None, personality: str = "") -> s
     today = datetime.now().strftime("%Y-%m-%d")
     tools_list = ", ".join(all_tools)
     base_md_items = "\n".join(f"- `{t}`" for t in BASE_TOOLS)
-    specific_md_items = "\n".join(f"- `{t}`" for t in specific_tools) if specific_tools else "- (nenhuma tool específica)"
+    specific_md_items = "\n".join(f"- `{t}`" for t in specific_tools) if specific_tools else "- (no specific tools)"
 
     if not personality:
-        personality = "Focado, eficiente, comunica resultados com clareza."
+        personality = "Focused, efficient, communicates results clearly."
 
-    # Conteúdo dos 5 arquivos .md
+    # Content of the 5 .md files
     files = {
-        "README.md": f"""# Agente: {safe_name}
+        "README.md": f"""# Agent: {safe_name}
 
-## Propósito
+## Purpose
 {purpose}
 
-## Criado em
+## Created on
 {today}
 
-## Tools Autorizadas
+## Authorized Tools
 {tools_list}
 
 ## Inputs
-- Mensagens em linguagem natural relacionadas à sua missão
+- Natural language messages related to its mission
 
 ## Outputs
-- Respostas em texto com resultados das ações executadas
-- Registros no log.md de cada ação
+- Text responses with results of executed actions
+- Records in log.md for each action
 """,
-        "personality.md": f"""# Personalidade — {safe_name}
+        "personality.md": f"""# Personality — {safe_name}
 
 {personality}
 
-## Estilo de Comunicação
-- Responde de forma objetiva e clara
-- Registra suas ações e raciocínio
-- Quando não sabe algo, diz explicitamente
-- Erros são reportados com contexto para diagnóstico
+## Communication Style
+- Responds objectively and clearly
+- Logs its actions and reasoning
+- When it doesn't know something, says so explicitly
+- Errors are reported with context for diagnosis
 """,
         "system_prompt.md": f"""# System Prompt — {safe_name}
 
-Você é o agente **{safe_name}** do Gray Ocean framework.
+You are the **{safe_name}** agent of the Gray Ocean framework.
 
-## Sua Missão
+## Your Mission
 {purpose}
 
-## Regras
-1. Use APENAS as tools listadas em tools.md
-2. Registre TODA ação no log.md usando append_file
-3. Quando não souber como resolver algo, diga explicitamente
-4. Siga os valores do VALUES.md em todas as decisões
-5. Prefira soluções simples sobre soluções complexas
+## Rules
+1. Use ONLY the tools listed in tools.md
+2. Log EVERY action in log.md using append_file
+3. When you don't know how to resolve something, say so explicitly
+4. Follow the values in VALUES.md in all decisions
+5. Prefer simple solutions over complex ones
 
-## REGRA CRÍTICA — Nunca fingir ações
-Você NÃO pode modificar arquivos apenas "pensando" nisso. Para qualquer mudança:
-- Para CRIAR/SOBRESCREVER: use write_file com TOOL/ARGS
-- Para ADICIONAR conteúdo: use append_file com TOOL/ARGS
-Ler um arquivo NÃO é modificá-lo. NUNCA diga "feito" sem ter chamado a tool.
+## CRITICAL RULE — Never fake actions
+You CANNOT modify files just by "thinking" about it. For any changes:
+- To CREATE/OVERWRITE: use write_file with TOOL/ARGS
+- To ADD content: use append_file with TOOL/ARGS
+Reading a file is NOT modifying it. NEVER say "done" without having called the tool.
 
-## Formato de Resposta
-Quando precisar usar uma tool, responda EXATAMENTE neste formato:
+## Response Format
+When you need to use a tool, respond EXACTLY in this format:
 
-TOOL: nome_da_tool
+TOOL: tool_name
 ARGS:
-param1: valor1
-param2: valor2
+param1: value1
+param2: value2
 
-Quando terminar a tarefa, responda com:
+When the task is complete, respond with:
 
-DONE: sua resposta final aqui
+DONE: your final response here
 """,
-        "tools.md": f"""# Tools Autorizadas — {safe_name}
+        "tools.md": f"""# Authorized Tools — {safe_name}
 
-Este agente tem acesso às seguintes tools:
+This agent has access to the following tools:
 
-## Tools Base (todos os agentes)
+## Base Tools (all agents)
 {base_md_items}
 
-## Tools Específicas
+## Specific Tools
 {specific_md_items}
 
-> Princípio de menor privilégio: este agente acessa APENAS estas tools.
-> Para solicitar acesso a tools adicionais, a mudança deve ser aprovada.
+> Least privilege principle: this agent accesses ONLY these tools.
+> To request access to additional tools, the change must be approved.
 """,
         "log.md": f"""# Log — {safe_name}
 
-## {today} — Criação
-- Agente criado pelo sistema
-- Propósito: {purpose}
-- Tools autorizadas: {tools_list}
+## {today} — Creation
+- Agent created by the system
+- Purpose: {purpose}
+- Authorized tools: {tools_list}
 
 ---
 """,
@@ -156,10 +156,10 @@ Este agente tem acesso às seguintes tools:
                 f.write(content)
 
         return (
-            f"OK: Agente '{safe_name}' criado com sucesso em agents/{safe_name}/.\n"
-            f"Arquivos criados: {', '.join(files.keys())}\n"
-            f"Tools autorizadas: {tools_list}"
+            f"OK: Agent '{safe_name}' created successfully in agents/{safe_name}/.\n"
+            f"Files created: {', '.join(files.keys())}\n"
+            f"Authorized tools: {tools_list}"
         )
 
     except Exception as e:
-        return f"ERRO ao criar agente '{safe_name}': {e}"
+        return f"ERROR creating agent '{safe_name}': {e}"

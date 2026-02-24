@@ -1,62 +1,62 @@
 # Tools Index — Gray Ocean
 
-> Catálogo de todas as tools disponíveis no Gray Ocean.
-> Atualizado automaticamente quando novas tools são registradas via `register_tool`.
+> Catalog of all tools available in Gray Ocean.
+> Automatically updated when new tools are registered via `register_tool`.
 
 ---
 
-## Tools Primitivas (built-in)
+## Primitive Tools (built-in)
 
 ### `read_file`
-- **Arquivo:** `tools/read_file.py`
-- **Descrição:** Lê o conteúdo de um arquivo do gray ocean
-- **Parâmetros:** `path` (caminho relativo ao arquivo)
-- **Analogia Unix:** `cat`
+- **File:** `tools/read_file.py`
+- **Description:** Reads the content of a file in gray ocean
+- **Parameters:** `path` (relative path to the file)
+- **Unix analog:** `cat`
 
 ### `write_file`
-- **Arquivo:** `tools/write_file.py`
-- **Descrição:** Cria ou sobrescreve um arquivo no gray ocean
-- **Parâmetros:** `path` (caminho relativo), `content` (conteúdo)
-- **Analogia Unix:** `echo >`
+- **File:** `tools/write_file.py`
+- **Description:** Creates or overwrites a file in gray ocean
+- **Parameters:** `path` (relative path), `content` (content to write)
+- **Unix analog:** `echo >`
 
 ### `append_file`
-- **Arquivo:** `tools/append_file.py`
-- **Descrição:** Adiciona conteúdo ao final de um arquivo existente
-- **Parâmetros:** `path` (caminho relativo), `content` (conteúdo a adicionar)
-- **Analogia Unix:** `echo >>`
+- **File:** `tools/append_file.py`
+- **Description:** Appends content to the end of an existing file
+- **Parameters:** `path` (relative path), `content` (content to append)
+- **Unix analog:** `echo >>`
 
 ### `list_dir`
-- **Arquivo:** `tools/list_dir.py`
-- **Descrição:** Lista o conteúdo de um diretório
-- **Parâmetros:** `path` (caminho relativo, padrão: raiz)
-- **Analogia Unix:** `ls`
+- **File:** `tools/list_dir.py`
+- **Description:** Lists the content of a directory
+- **Parameters:** `path` (relative path, default: root)
+- **Unix analog:** `ls`
 
 ### `run_python`
-- **Arquivo:** `tools/run_python.py`
-- **Descrição:** Executa código Python em sandbox isolada
-- **Parâmetros:** `code` (código Python a executar)
-- **Analogia Unix:** `exec / subprocess`
+- **File:** `tools/run_python.py`
+- **Description:** Executes Python code in an isolated sandbox
+- **Parameters:** `code` (Python code to execute)
+- **Unix analog:** `exec / subprocess`
 
 ### `ask_llm`
-- **Arquivo:** `tools/ask_llm.py`
-- **Descrição:** Faz uma chamada ao LLM via Ollama local
-- **Parâmetros:** `prompt` (mensagem), `system` (opcional), `model` (opcional, padrão: llama3.1)
-- **Analogia Unix:** `curl` para API
+- **File:** `tools/ask_llm.py`
+- **Description:** Makes a call to the LLM via local Ollama
+- **Parameters:** `prompt` (message), `system` (optional), `model` (optional, default: llama3.1)
+- **Unix analog:** `curl` for API
 
 ### `register_tool`
-- **Arquivo:** `tools/register_tool.py`
-- **Descrição:** Registra uma nova tool no gray ocean (salva .py e atualiza index)
-- **Parâmetros:** `name` (nome), `code` (código com run()), `description` (descrição)
-- **Analogia Unix:** `install`
+- **File:** `tools/register_tool.py`
+- **Description:** Registers a new tool in gray ocean (saves .py and updates index)
+- **Parameters:** `name` (name), `code` (code with run()), `description` (description)
+- **Unix analog:** `install`
 
 ### `spawn_agent`
-- **Arquivo:** `tools/spawn_agent.py`
-- **Descrição:** Cria um novo agente com pasta e 5 arquivos .md
-- **Parâmetros:** `name` (nome), `purpose` (missão), `tools` (lista de tools), `personality` (opcional)
-- **Analogia Unix:** `fork + mkdir`
+- **File:** `tools/spawn_agent.py`
+- **Description:** Creates a new agent with folder and 5 .md files
+- **Parameters:** `name` (name), `purpose` (mission), `tools` (list of tools), `personality` (optional)
+- **Unix analog:** `fork + mkdir`
 
 ---
 
-## Tools Criadas por Agentes
+## Tools Created by Agents
 
-> Novas tools aparecerão abaixo conforme forem registradas via `register_tool`.
+> New tools will appear below as they are registered via `register_tool`.

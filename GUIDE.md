@@ -1,79 +1,79 @@
-# GUIDE.md — Guia do Gray Ocean
+# GUIDE.md — Gray Ocean Guide
 
-> Guia para humanos e agentes interagirem com o Gray Ocean.
+> Guide for humans and agents interacting with Gray Ocean.
 
 ---
 
-## Para Humanos
+## For Humans
 
-### Como usar
+### How to use
 
 ```bash
-# Configurar o ambiente (primeira vez)
+# Set up the environment (first time)
 bash setup.sh
 
-# Enviar uma mensagem ao Architect
-python gray_ocean.py "sua mensagem aqui"
+# Send a message to the Architect
+python gray_ocean.py "your message here"
 
-# Exemplos
-python gray_ocean.py "liste todas as tools disponíveis"
-python gray_ocean.py "crie uma tool que calcula fibonacci"
-python gray_ocean.py "preciso de um agente que monitora arquivos"
+# Examples
+python gray_ocean.py "list all available tools"
+python gray_ocean.py "create a tool that calculates fibonacci"
+python gray_ocean.py "I need an agent that monitors files"
 ```
 
-### O que acontece quando você envia uma mensagem?
+### What happens when you send a message?
 
-1. O `gray_ocean.py` recebe sua mensagem
-2. O `core/runtime.py` carrega o agente Architect
-3. O Architect raciocina sobre como resolver sua solicitação
-4. Ele usa tools conforme necessário (ler arquivos, executar código, etc.)
-5. Se precisa de algo que não existe, ele cria (tool ou agente)
-6. Você recebe a resposta final
+1. `gray_ocean.py` receives your message
+2. `core/runtime.py` loads the Architect agent
+3. The Architect reasons about how to resolve your request
+4. It uses tools as needed (read files, execute code, etc.)
+5. If it needs something that doesn't exist, it creates it (tool or agent)
+6. You receive the final response
 
-### Como verificar o que aconteceu?
+### How to check what happened?
 
-- Leia `agents/architect/log.md` para ver todas as ações do Architect
-- Leia `tools/index.md` para ver todas as tools disponíveis
-- Liste `agents/` para ver todos os agentes existentes
+- Read `agents/architect/log.md` to see all Architect actions
+- Read `tools/index.md` to see all available tools
+- List `agents/` to see all existing agents
 
-### Como auditar o sistema?
+### How to audit the system?
 
-Todo estado do Gray Ocean é armazenado em arquivos Markdown legíveis:
-- Cada agente tem um `log.md` com histórico completo
-- O `tools/index.md` cataloga todas as ferramentas
-- `gray_ocean_ideas/` mostra propostas de mudança no framework
+All Gray Ocean state is stored in readable Markdown files:
+- Each agent has a `log.md` with complete history
+- `tools/index.md` catalogs all tools
+- `gray_ocean_ideas/` shows framework change proposals
 
 ---
 
-## Para Agentes
+## For Agents
 
-### Convenções
+### Conventions
 
-1. **Toda ação deve ser registrada** no `log.md` do agente
-2. **Verifique o que existe antes de criar** — leia `tools/index.md`
-3. **Use apenas tools autorizadas** — listadas no seu `tools.md`
-4. **Siga os valores** — leia e respeite `VALUES.md`
-5. **Formato de resposta** — use TOOL/DONE conforme definido no system_prompt.md
+1. **Every action must be logged** in the agent's `log.md`
+2. **Check what exists before creating** — read `tools/index.md`
+3. **Use only authorized tools** — listed in your `tools.md`
+4. **Follow the values** — read and respect `VALUES.md`
+5. **Response format** — use TOOL/DONE as defined in system_prompt.md
 
-### Como criar uma tool
+### How to create a tool
 
-1. Escreva o código Python com uma função `run()` e docstring
-2. Teste com `run_python` para validar
-3. Registre com `register_tool` para tornar disponível
+1. Write Python code with a `run()` function and docstring
+2. Test with `run_python` to validate
+3. Register with `register_tool` to make it available
 
-### Como criar um agente
+### How to create an agent
 
-Use a tool `spawn_agent` com:
-- `name`: nome do agente
-- `purpose`: missão/propósito
-- `tools`: lista de tools que o agente precisa
-- `personality` (opcional): traços de personalidade
+Use the `spawn_agent` tool with:
+- `name`: agent name
+- `purpose`: mission/purpose
+- `tools`: list of tools the agent needs
+- `personality` (optional): personality traits
 
-### Propostas de mudança no framework
+### Framework change proposals
 
-Para propor mudanças em `core/`, `VALUES.md`, ou na estrutura de pastas:
-1. Escreva a proposta em `gray_ocean_ideas/pending_ideas.md`
-2. Siga o formato padronizado
-3. Aguarde aprovação antes de implementar
+To propose changes to `core/`, `VALUES.md`, or folder structure:
+1. Write the proposal in `gray_ocean_ideas/pending_ideas.md`
+2. Follow the standardized format
+3. Wait for approval before implementing
 
-> Mudanças em tools e agentes NÃO precisam de proposta — crie diretamente.
+> Changes to tools and agents do NOT need a proposal — create directly.

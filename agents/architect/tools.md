@@ -1,6 +1,6 @@
-# Tools Autorizadas — Architect
+# Authorized Tools — Architect
 
-Este agente tem acesso a TODAS as 8 tools primitivas:
+This agent has access to ALL 8 primitive tools:
 
 - `read_file`
 - `write_file`
@@ -11,6 +11,6 @@ Este agente tem acesso a TODAS as 8 tools primitivas:
 - `register_tool`
 - `spawn_agent`
 
-> O Architect é o único agente com acesso total.
-> Agentes criados por ele receberão APENAS as tools necessárias para sua missão.
-> Princípio de menor privilégio: acesso amplo para o construtor, restrito para os habitantes.
+> The Architect is the only agent with full access.
+> Agents created by it will receive ONLY the tools necessary for their mission.
+> Least privilege principle: broad access for the builder, restricted for the inhabitants.
