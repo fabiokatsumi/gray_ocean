@@ -4,7 +4,7 @@ A self-evolving AI agent framework inspired by Unix philosophy. Humans describe 
 
 > *The gray ocean starts as a puddle. The agents decide what it becomes.*
 
----
+--------
 
 ## Table of Contents
 
