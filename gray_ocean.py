@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-gray_ocean.py — Ponto de entrada do Gray Ocean Framework
+gray_ocean.py — Entry point of the Gray Ocean Framework
 
-O shell do Gray Ocean. Recebe mensagens em linguagem natural,
-encaminha ao agente Architect (ou outro agente especificado),
-e retorna a resposta.
+The Gray Ocean shell. Receives natural language messages,
+forwards them to the Architect agent (or another specified agent),
+and returns the response.
 
-Uso:
-    python gray_ocean.py "sua mensagem aqui"
-    python gray_ocean.py --agent nome_do_agente "sua mensagem"
-    python gray_ocean.py --model llama3.1 "sua mensagem"
+Usage:
+    python gray_ocean.py "your message here"
+    python gray_ocean.py --agent agent_name "your message"
+    python gray_ocean.py --model llama3.1 "your message"
     python gray_ocean.py --interactive
 """
 
@@ -19,7 +19,7 @@ import os
 import re
 import argparse
 
-# Adicionar o diretório raiz ao path
+# Add the root directory to the path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 AGENTS_DIR = os.path.join(BASE_DIR, "agents")
@@ -71,39 +71,39 @@ DEFAULT_MODEL = ENV.get("OLLAMA_MODEL") or ENV.get("OPENAI_MODEL") or ENV.get("O
 
 
 def print_banner():
-    """Exibe o banner do Gray Ocean."""
+    """Displays the Gray Ocean banner."""
     print(
         """
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
        GRAY OCEAN — Agent Framework
-       "Começa como uma poça.
-        Os agentes decidem o resto."
+       "Starts as a puddle.
+        Agents decide the rest."
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     """
     )
 
 
 def interactive_mode(agent: str, model: str):
-    """Modo interativo — loop de conversa com o agente."""
+    """Interactive mode — conversation loop with the agent."""
     print_banner()
     agents = list_available_agents()
-    print(f"  Agente padrão: {agent} | Modelo: {model}")
-    print(f"  Agentes disponíveis: {', '.join('@' + a for a in agents)}")
-    print("  Use @nome_agente mensagem para falar com um agente específico.")
-    print("  Digite 'sair' ou 'exit' para encerrar.\n")
+    print(f"  Default agent: {agent} | Model: {model}")
+    print(f"  Available agents: {', '.join('@' + a for a in agents)}")
+    print("  Use @agent_name message to talk to a specific agent.")
+    print("  Type 'exit' or 'quit' to end the session.\n")
 
     while True:
         try:
             user_input = input("  > ").strip()
         except (KeyboardInterrupt, EOFError):
-            print("\n\n  Até logo.")
+            print("\n\n  Goodbye.")
             break
 
         if not user_input:
             continue
 
-        if user_input.lower() in ("sair", "exit", "quit"):
-            print("\n  Até logo.")
+        if user_input.lower() in ("exit", "quit"):
+            print("\n  Goodbye.")
             break
 
         target_agent = agent
@@ -119,13 +119,13 @@ def interactive_mode(agent: str, model: str):
             run_agent(target_agent, message, model=model)
             print()  # blank line after streamed response
         except FileNotFoundError as e:
-            print(f"  ERRO: {e}\n")
+            print(f"  ERROR: {e}\n")
         except Exception as e:
-            print(f"  ERRO inesperado: {e}\n")
+            print(f"  Unexpected ERROR: {e}\n")
 
 
 def single_message(agent: str, message: str, model: str):
-    """Modo single-shot — envia uma mensagem e retorna."""
+    """Single-shot mode — sends a message and returns."""
     mentioned_agent, remaining = parse_at_mention(message)
     if mentioned_agent:
         agent = mentioned_agent
@@ -135,10 +135,10 @@ def single_message(agent: str, message: str, model: str):
         run_agent(agent, message, model=model)
         # Response is streamed to stdout by call_llm(); no re-print needed
     except FileNotFoundError as e:
-        print(f"ERRO: {e}", file=sys.stderr)
+        print(f"ERROR: {e}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(f"ERRO inesperado: {e}", file=sys.stderr)
+        print(f"Unexpected ERROR: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc()
         sys.exit(1)
@@ -146,37 +146,37 @@ def single_message(agent: str, message: str, model: str):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Gray Ocean — Framework de Agentes Auto-Evolutivos",
+        description="Gray Ocean — Self-Evolving Agent Framework",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Exemplos:
-  python gray_ocean.py "liste todas as tools disponíveis"
-  python gray_ocean.py "crie uma tool que calcula fibonacci"
-  python gray_ocean.py --agent architect "preciso de um agente monitor"
+Examples:
+  python gray_ocean.py "list all available tools"
+  python gray_ocean.py "create a tool that calculates fibonacci"
+  python gray_ocean.py --agent architect "I need a monitor agent"
   python gray_ocean.py --interactive
-  python gray_ocean.py --model llama3.1:8b "olá"
+  python gray_ocean.py --model llama3.1:8b "hello"
         """,
     )
 
     parser.add_argument(
         "message",
         nargs="?",
-        help="Mensagem em linguagem natural para o agente",
+        help="Natural language message for the agent",
     )
     parser.add_argument(
         "--agent", "-a",
         default="architect",
-        help="Nome do agente a ser invocado (padrão: architect)",
+        help="Name of the agent to invoke (default: architect)",
     )
     parser.add_argument(
         "--model", "-m",
         default=DEFAULT_MODEL,
-        help="Modelo LLM a usar (default: definido em .env)",
+        help="LLM model to use (default: defined in .env)",
     )
     parser.add_argument(
         "--interactive", "-i",
         action="store_true",
-        help="Modo interativo (loop de conversa)",
+        help="Interactive mode (conversation loop)",
     )
 
     args = parser.parse_args()

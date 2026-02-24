@@ -1,14 +1,14 @@
-# Tools Autorizadas — my_chat_bot
+# Authorized Tools — my_chat_bot
 
-Este agente tem acesso às seguintes tools:
+This agent has access to the following tools:
 
-## Tools Base (todos os agentes)
+## Base Tools (all agents)
 - `read_file`
 - `append_file`
 - `list_dir`
 
-## Tools Específicas
+## Specific Tools
 - `ask_llm`
 
-> Princípio de menor privilégio: este agente acessa APENAS estas tools.
-> Para solicitar acesso a tools adicionais, a mudança deve ser aprovada.
+> Least privilege principle: this agent accesses ONLY these tools.
+> To request access to additional tools, the change must be approved.

@@ -1,11 +1,11 @@
 """
-ask_llm — Faz uma chamada ao LLM via provider configurado em .env.
+ask_llm — Makes a call to the LLM via the provider configured in .env.
 
-Analogia Unix: curl para API
-Input: prompt (str) — a mensagem para o LLM
-       system (str, opcional) — system prompt
-       model (str, opcional) — modelo a usar (padrão: definido em .env)
-Output: resposta do LLM como string
+Unix analog: curl for API
+Input: prompt (str) — the message for the LLM
+       system (str, optional) — system prompt
+       model (str, optional) — model to use (default: defined in .env)
+Output: LLM response as string
 """
 
 import json
@@ -14,11 +14,11 @@ import urllib.request
 import urllib.error
 
 TOOL_NAME = "ask_llm"
-TOOL_DESCRIPTION = "Faz uma pergunta ao LLM usando o provider configurado em .env (ollama/openai/openrouter). Recebe 'prompt' (mensagem), opcionalmente 'system' (system prompt) e 'model' (modelo)."
+TOOL_DESCRIPTION = "Asks a question to the LLM using the provider configured in .env (ollama/openai/openrouter). Receives 'prompt' (message), optionally 'system' (system prompt) and 'model' (model)."
 TOOL_PARAMETERS = {
-    "prompt": "A mensagem/pergunta para o LLM",
-    "system": "(Opcional) System prompt para contextualizar o LLM",
-    "model": "(Opcional) Modelo a usar. Padrão: definido em .env",
+    "prompt": "The message/question for the LLM",
+    "system": "(Optional) System prompt to contextualize the LLM",
+    "model": "(Optional) Model to use. Default: defined in .env",
 }
 
 
@@ -61,7 +61,7 @@ def run(prompt: str, system: str = "", model: str = "") -> str:
             )
             with urllib.request.urlopen(req, timeout=120) as response:
                 result = json.loads(response.read().decode("utf-8"))
-                return result.get("message", {}).get("content", "ERRO: Resposta vazia do LLM.")
+                return result.get("message", {}).get("content", "ERROR: Empty response from LLM.")
 
         elif provider in ("openai", "openrouter"):
             if provider == "openai":
@@ -81,13 +81,13 @@ def run(prompt: str, system: str = "", model: str = "") -> str:
             payload = {"model": model, "messages": messages, "temperature": 0.7, "stream": False}
             resp = requests.post(url, headers=headers, json=payload, timeout=120)
             if resp.status_code != 200:
-                return f"ERRO: {provider} API {resp.status_code}: {resp.text}"
+                return f"ERROR: {provider} API {resp.status_code}: {resp.text}"
             return resp.json()["choices"][0]["message"]["content"]
 
         else:
-            return f"ERRO: LLM_PROVIDER '{provider}' não suportado. Use: ollama, openai, openrouter."
+            return f"ERROR: LLM_PROVIDER '{provider}' not supported. Use: ollama, openai, openrouter."
 
     except urllib.error.URLError as e:
-        return f"ERRO: Não foi possível conectar ao LLM ({provider}). Detalhe: {e}"
+        return f"ERROR: Could not connect to LLM ({provider}). Details: {e}"
     except Exception as e:
-        return f"ERRO ao chamar LLM: {e}"
+        return f"ERROR calling LLM: {e}"

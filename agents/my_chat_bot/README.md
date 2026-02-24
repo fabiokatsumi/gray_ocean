@@ -1,17 +1,17 @@
-# Agente: my_chat_bot
+# Agent: my_chat_bot
 
-## Propósito
-Conversar com usuários usando LLM local
+## Purpose
+Chat with users using a local LLM
 
-## Criado em
+## Created on
 2026-02-22
 
-## Tools Autorizadas
+## Authorized Tools
 ask_llm
 
 ## Inputs
-- Mensagens em linguagem natural relacionadas à sua missão
+- Natural language messages related to its mission
 
 ## Outputs
-- Respostas em texto com resultados das ações executadas
-- Registros no log.md de cada ação
+- Text responses with results of executed actions
+- Records in log.md for each action

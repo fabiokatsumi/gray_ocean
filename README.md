@@ -125,7 +125,7 @@ ollama serve
 ollama list
 
 # Test Gray Ocean
-python3 gray_ocean.py "liste todas as tools disponíveis"
+python3 gray_ocean.py "list all available tools"
 ```
 
 ---
@@ -193,12 +193,12 @@ In interactive mode:
 ```
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
        GRAY OCEAN — Agent Framework
-       "Começa como uma poça.
-        Os agentes decidem o resto."
+       "Starts as a puddle.
+        Agents decide the rest."
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  Agente: architect | Modelo: llama3.1
-  Digite 'sair' ou 'exit' para encerrar.
+  Default agent: architect | Model: llama3.1
+  Type 'exit' or 'quit' to end the session.
 
   > list all tools
   ...
@@ -423,15 +423,15 @@ Changes to the **core framework** (`core/runtime.py`, `VALUES.md`, folder struct
 Proposal format:
 
 ```markdown
-## [PROPOSTA] Name of the change
-Data: YYYY-MM-DD
-Proposta por: agent_name
-Arquivo(s) afetado(s): core/runtime.py | VALUES.md | folder structure
-Problema observado: objective description of the framework problem
-Mudança proposta: what exactly should change
-Impacto esperado: what improves system-wide
-Riscos: what could break
-Complexidade: low / medium / high
+## [PROPOSAL] Name of the change
+Date: YYYY-MM-DD
+Proposed by: agent_name
+Affected file(s): core/runtime.py | VALUES.md | folder structure
+Observed problem: objective description of the framework problem
+Proposed change: what exactly should change
+Expected impact: what improves system-wide
+Risks: what could break
+Complexity: low / medium / high
 ```
 
 ---
@@ -497,7 +497,7 @@ See `VALUES.md` for the full text.
 ### Ollama is not running
 
 ```
-ERRO: Não foi possível conectar ao Ollama...
+ERROR: Could not connect to Ollama...
 ```
 
 Start the Ollama server:
@@ -517,7 +517,7 @@ ollama pull llama3.1
 ### Agent not found
 
 ```
-ERRO: Agente 'nome' não encontrado
+ERROR: Agent 'name' not found
 ```
 
 Check available agents:

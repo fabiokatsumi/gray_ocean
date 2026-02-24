@@ -1,44 +1,44 @@
 """
-read_file — Lê o conteúdo de um arquivo do Gray Ocean.
+read_file — Reads the content of a file in Gray Ocean.
 
-Analogia Unix: cat
-Input: path (str) — caminho relativo à raiz do gray_ocean
-Output: conteúdo do arquivo como string
+Unix analog: cat
+Input: path (str) — path relative to the gray_ocean root
+Output: file content as string
 
-Exemplo de uso:
+Usage example:
     result = run(path="tools/index.md")
 """
 
 import os
 
 TOOL_NAME = "read_file"
-TOOL_DESCRIPTION = "Lê o conteúdo de um arquivo. Recebe 'path' (caminho relativo à raiz do gray_ocean)."
+TOOL_DESCRIPTION = "Reads the content of a file. Receives 'path' (path relative to the gray_ocean root)."
 TOOL_PARAMETERS = {
-    "path": "Caminho relativo ao arquivo a ser lido"
+    "path": "Relative path to the file to be read"
 }
 
-# Raiz do gray_ocean (diretório pai de tools/)
+# Gray Ocean root (parent directory of tools/)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def run(path: str) -> str:
-    """Lê e retorna o conteúdo de um arquivo."""
+    """Reads and returns the content of a file."""
     full_path = os.path.join(BASE_DIR, path)
     full_path = os.path.normpath(full_path)
 
-    # Segurança: não permitir traversal fora do gray_ocean
+    # Security: do not allow traversal outside gray_ocean
     if not full_path.startswith(BASE_DIR):
-        return f"ERRO: Acesso negado. O caminho '{path}' está fora do gray_ocean."
+        return f"ERROR: Access denied. Path '{path}' is outside gray_ocean."
 
     if not os.path.exists(full_path):
-        return f"ERRO: Arquivo não encontrado: {path}"
+        return f"ERROR: File not found: {path}"
 
     if not os.path.isfile(full_path):
-        return f"ERRO: '{path}' não é um arquivo. Use list_dir para diretórios."
+        return f"ERROR: '{path}' is not a file. Use list_dir for directories."
 
     try:
         with open(full_path, "r", encoding="utf-8") as f:
             content = f.read()
         return content
     except Exception as e:
-        return f"ERRO ao ler '{path}': {e}"
+        return f"ERROR reading '{path}': {e}"

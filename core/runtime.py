@@ -1,16 +1,16 @@
 """
-runtime.py — O Kernel do Gray Ocean
+runtime.py — The Gray Ocean Kernel
 
-Implementa o loop ReAct (Reason + Act) para execução de agentes.
+Implements the ReAct loop (Reason + Act) for agent execution.
 
-Fluxo:
-1. Carrega o agente a partir de seus arquivos .md
-2. Constrói o system prompt injetando personalidade + tools disponíveis
-3. Envia mensagem do humano para o LLM
-4. Parseia a resposta: é TOOL ou DONE?
-5. Se TOOL: executa a tool, injeta resultado, volta ao passo 3
-6. Se DONE: registra no log, retorna resposta ao humano
-7. Se max_steps atingido: retorna o que tiver e loga o timeout
+Flow:
+1. Load the agent from its .md files
+2. Build the system prompt injecting personality + available tools
+3. Send the human's message to the LLM
+4. Parse the response: is it TOOL or DONE?
+5. If TOOL: execute the tool, inject result, go back to step 3
+6. If DONE: log the action, return response to human
+7. If max_steps reached: return what we have and log the timeout
 """
 
 import os
@@ -41,7 +41,7 @@ OPENAI_MODEL = ENV.get("OPENAI_MODEL", "gpt-4")
 OPENROUTER_API_KEY = ENV.get("OPENROUTER_API_KEY")
 OPENROUTER_MODEL = ENV.get("OPENROUTER_MODEL", "meta-llama-3")
 
-# Raiz do gray_ocean
+# Gray Ocean root directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOOLS_DIR = os.path.join(BASE_DIR, "tools")
 AGENTS_DIR = os.path.join(BASE_DIR, "agents")
@@ -56,7 +56,7 @@ _values_cache: str = None
 
 
 def load_agent(agent_name: str) -> dict:
-    """Carrega um agente a partir de seus arquivos .md (cached per process)."""
+    """Loads an agent from its .md files (cached per process)."""
     agent_name = agent_name.lower().strip()
     if agent_name in _agent_cache:
         return _agent_cache[agent_name]
@@ -64,7 +64,7 @@ def load_agent(agent_name: str) -> dict:
     agent_dir = os.path.join(AGENTS_DIR, agent_name)
 
     if not os.path.isdir(agent_dir):
-        raise FileNotFoundError(f"Agente '{agent_name}' não encontrado em {agent_dir}")
+        raise FileNotFoundError(f"Agent '{agent_name}' not found in {agent_dir}")
 
     agent = {"name": agent_name, "dir": agent_dir}
 
@@ -89,7 +89,7 @@ def load_agent(agent_name: str) -> dict:
 
 
 def parse_authorized_tools(tools_md: str) -> list:
-    """Extrai a lista de tools autorizadas do tools.md do agente."""
+    """Extracts the list of authorized tools from the agent's tools.md."""
     tools = []
     for line in tools_md.split("\n"):
         line = line.strip()
@@ -100,7 +100,7 @@ def parse_authorized_tools(tools_md: str) -> list:
 
 
 def load_tool(tool_name: str):
-    """Carrega dinamicamente um módulo de tool (cached per process)."""
+    """Dynamically loads a tool module (cached per process)."""
     if tool_name in _tool_module_cache:
         return _tool_module_cache[tool_name]
 
@@ -117,24 +117,24 @@ def load_tool(tool_name: str):
 
 
 def build_tools_description(tool_names: list) -> str:
-    """Constrói a descrição de tools disponíveis para o system prompt."""
+    """Builds the description of available tools for the system prompt."""
     descriptions = []
 
     for name in tool_names:
         module = load_tool(name)
         if module:
-            desc = getattr(module, "TOOL_DESCRIPTION", "Sem descrição")
+            desc = getattr(module, "TOOL_DESCRIPTION", "No description")
             params = getattr(module, "TOOL_PARAMETERS", {})
             params_str = "\n".join(f"    {k}: {v}" for k, v in params.items())
             descriptions.append(
-                f"### {name}\n{desc}\nParâmetros:\n{params_str}"
+                f"### {name}\n{desc}\nParameters:\n{params_str}"
             )
 
     return "\n\n".join(descriptions)
 
 
 def build_system_prompt(agent: dict, tool_names: list) -> str:
-    """Monta o system prompt completo para o agente (cached per agent+tools combo)."""
+    """Builds the complete system prompt for the agent (cached per agent+tools combo)."""
     global _values_cache
     cache_key = agent["name"] + "|" + ",".join(sorted(tool_names))
     if cache_key in _system_prompt_cache:
@@ -142,7 +142,7 @@ def build_system_prompt(agent: dict, tool_names: list) -> str:
 
     tools_desc = build_tools_description(tool_names)
 
-    # Carregar VALUES.md uma única vez por processo
+    # Load VALUES.md once per process
     if _values_cache is None:
         values_path = os.path.join(BASE_DIR, "VALUES.md")
         if os.path.exists(values_path):
@@ -155,49 +155,49 @@ def build_system_prompt(agent: dict, tool_names: list) -> str:
     prompt = f"""{agent.get('system_prompt', '')}
 
 ---
-## Personalidade
+## Personality
 {agent.get('personality', '')}
 
 ---
-## Tools Disponíveis
+## Available Tools
 {tools_desc}
 
 ---
-## Formato de Uso de Tools
+## Tool Usage Format
 
-Quando precisar usar uma tool, responda EXATAMENTE neste formato (uma tool por vez):
+When you need to use a tool, respond EXACTLY in this format (one tool at a time):
 
-TOOL: nome_da_tool
+TOOL: tool_name
 ARGS:
-param1: valor1
-param2: valor2
+param1: value1
+param2: value2
 
-Para argumentos com múltiplas linhas, use o delimitador <<<>>> :
+For multi-line arguments, use the <<<>>> delimiter:
 
-TOOL: nome_da_tool
+TOOL: tool_name
 ARGS:
-param1: valor simples
+param1: simple value
 param2: <<<
-conteúdo com
-múltiplas linhas
-aqui
+content with
+multiple lines
+here
 >>>
 
-Quando terminar completamente a tarefa, responda com:
+When the task is completely done, respond with:
 
-DONE: sua resposta final aqui
-
----
-## REGRA OBRIGATÓRIA — Ações reais apenas via TOOL
-
-Você NÃO tem capacidade de modificar arquivos, criar agentes ou executar código por conta própria.
-A ÚNICA forma de realizar ações é chamando uma TOOL com o formato acima.
-Se o pedido requer escrever/modificar/criar algo, você DEVE emitir TOOL: antes de responder DONE:.
-Ler um arquivo (read_file) NÃO é modificá-lo. Se o pedido é para adicionar conteúdo, chame append_file ou write_file.
-NUNCA responda DONE: dizendo que algo foi feito se você não chamou a TOOL correspondente.
+DONE: your final response here
 
 ---
-## Valores do Sistema
+## MANDATORY RULE — Real actions only via TOOL
+
+You do NOT have the ability to modify files, create agents, or execute code on your own.
+The ONLY way to perform actions is by calling a TOOL with the format above.
+If the request requires writing/modifying/creating something, you MUST emit TOOL: before responding DONE:.
+Reading a file (read_file) is NOT modifying it. If the request is to add content, call append_file or write_file.
+NEVER respond DONE: saying something was done if you did not call the corresponding TOOL.
+
+---
+## System Values
 {values}
 """
     _system_prompt_cache[cache_key] = prompt
@@ -205,10 +205,10 @@ NUNCA responda DONE: dizendo que algo foi feito se você não chamou a TOOL corr
 
 
 def parse_llm_response(response: str) -> dict:
-    """Parseia a resposta do LLM para identificar TOOL ou DONE."""
+    """Parses the LLM response to identify TOOL or DONE."""
     response = response.strip()
 
-    # Verificar DONE
+    # Check for DONE
     if "DONE:" in response:
         idx = response.index("DONE:")
         return {
@@ -217,7 +217,7 @@ def parse_llm_response(response: str) -> dict:
             "reasoning": response[:idx].strip() if idx > 0 else "",
         }
 
-    # Verificar TOOL
+    # Check for TOOL
     if "TOOL:" in response:
         idx = response.index("TOOL:")
         reasoning = response[:idx].strip() if idx > 0 else ""
@@ -229,7 +229,7 @@ def parse_llm_response(response: str) -> dict:
         args = {}
         if len(lines) > 1:
             i = 1
-            # Pular linha "ARGS:" se existir
+            # Skip "ARGS:" line if present
             if i < len(lines) and lines[i].strip().upper().startswith("ARGS"):
                 i += 1
 
@@ -252,7 +252,7 @@ def parse_llm_response(response: str) -> dict:
                         else:
                             multiline_value = line
                 elif ":" in line and not line.startswith(" " * 4):
-                    # Nova chave:valor
+                    # New key:value pair
                     colon_idx = line.index(":")
                     key = line[:colon_idx].strip()
                     value = line[colon_idx + 1:].strip()
@@ -274,7 +274,7 @@ def parse_llm_response(response: str) -> dict:
             "reasoning": reasoning,
         }
 
-    # Se não tem TOOL nem DONE, tratar como DONE implícito
+    # If neither TOOL nor DONE, treat as implicit DONE
     return {
         "type": "DONE",
         "content": response,
@@ -283,19 +283,19 @@ def parse_llm_response(response: str) -> dict:
 
 
 def execute_tool(tool_name: str, args: dict, authorized_tools: list) -> str:
-    """Executa uma tool com os argumentos fornecidos."""
+    """Executes a tool with the provided arguments."""
     if tool_name not in authorized_tools:
-        return f"ERRO: Tool '{tool_name}' não autorizada para este agente. Tools autorizadas: {', '.join(authorized_tools)}"
+        return f"ERROR: Tool '{tool_name}' not authorized for this agent. Authorized tools: {', '.join(authorized_tools)}"
 
     module = load_tool(tool_name)
     if module is None:
-        return f"ERRO: Tool '{tool_name}' não encontrada em tools/."
+        return f"ERROR: Tool '{tool_name}' not found in tools/."
 
     if not hasattr(module, "run"):
-        return f"ERRO: Tool '{tool_name}' não possui função run()."
+        return f"ERROR: Tool '{tool_name}' does not have a run() function."
 
     try:
-        # Converter tipos de argumentos conforme necessário
+        # Convert argument types as needed
         import inspect
         sig = inspect.signature(module.run)
         converted_args = {}
@@ -309,12 +309,12 @@ def execute_tool(tool_name: str, args: dict, authorized_tools: list) -> str:
                     hasattr(annotation, "__origin__")
                     and annotation.__origin__ == list
                 ):
-                    # Tentar parsear como JSON list
+                    # Try to parse as JSON list
                     if isinstance(value, str):
                         try:
                             value = json.loads(value)
                         except json.JSONDecodeError:
-                            # Tentar parsear como lista separada por vírgula
+                            # Try to parse as comma-separated list
                             value = [v.strip() for v in value.split(",")]
                     converted_args[param_name] = value
                 elif annotation == int:
@@ -323,27 +323,27 @@ def execute_tool(tool_name: str, args: dict, authorized_tools: list) -> str:
                     converted_args[param_name] = float(value)
                 elif annotation == bool:
                     converted_args[param_name] = value.lower() in (
-                        "true", "1", "yes", "sim"
+                        "true", "1", "yes"
                     )
                 else:
                     converted_args[param_name] = value
             elif param.default is not inspect.Parameter.empty:
-                pass  # Usa o default da função
+                pass  # Use the function's default
             else:
                 return (
-                    f"ERRO: Parâmetro obrigatório '{param_name}' não fornecido "
-                    f"para tool '{tool_name}'."
+                    f"ERROR: Required parameter '{param_name}' not provided "
+                    f"for tool '{tool_name}'."
                 )
 
         result = module.run(**converted_args)
         return str(result)
 
     except Exception as e:
-        return f"ERRO ao executar tool '{tool_name}': {e}"
+        return f"ERROR executing tool '{tool_name}': {e}"
 
 
 def log_action(agent: dict, action: str):
-    """Registra uma ação no log.md do agente."""
+    """Logs an action to the agent's log.md."""
     log_path = os.path.join(agent["dir"], "log.md")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -353,11 +353,11 @@ def log_action(agent: dict, action: str):
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(entry)
     except Exception:
-        pass  # Log não deve interromper a execução
+        pass  # Log should not interrupt execution
 
 
 def call_llm(system_prompt: str, messages: list, model: str = None) -> str:
-    """Chama o LLM via provider definido em .env, com streaming para stdout."""
+    """Calls the LLM via the provider defined in .env, with streaming to stdout."""
     import urllib.request
     import urllib.error
     import requests
@@ -399,7 +399,7 @@ def call_llm(system_prompt: str, messages: list, model: str = None) -> str:
                     if chunk.get("done", False):
                         break
             print()
-            return full_content or "ERRO: Resposta vazia do LLM."
+            return full_content or "ERROR: Empty response from LLM."
 
         elif provider in ("openai", "openrouter"):
             if provider == "openai":
@@ -420,7 +420,7 @@ def call_llm(system_prompt: str, messages: list, model: str = None) -> str:
             }
             resp = requests.post(url, headers=headers, json=payload, timeout=120, stream=True)
             if resp.status_code != 200:
-                return f"ERRO: {provider} API {resp.status_code}: {resp.text}"
+                return f"ERROR: {provider} API {resp.status_code}: {resp.text}"
             full_content = ""
             for raw_line in resp.iter_lines():
                 if not raw_line:
@@ -440,31 +440,27 @@ def call_llm(system_prompt: str, messages: list, model: str = None) -> str:
                 except (json.JSONDecodeError, KeyError, IndexError):
                     pass
             print()
-            return full_content or "ERRO: Resposta vazia do LLM."
+            return full_content or "ERROR: Empty response from LLM."
 
         else:
-            return f"ERRO: LLM_PROVIDER '{provider}' não suportado."
+            return f"ERROR: LLM_PROVIDER '{provider}' not supported."
 
     except urllib.error.URLError as e:
-        return f"ERRO: Não foi possível conectar ao LLM. Detalhe: {e}"
+        return f"ERROR: Could not connect to LLM. Details: {e}"
     except Exception as e:
-        return f"ERRO ao chamar LLM: {e}"
+        return f"ERROR calling LLM: {e}"
 
 
 WRITE_TOOLS = {"write_file", "append_file", "register_tool", "spawn_agent"}
 
 WRITE_CLAIM_KEYWORDS = [
-    "adicionad", "escrit", "registrad", "criad", "salv", "gravad",
     "added", "written", "created", "saved", "registered", "appended",
-    "proposal added", "proposta adicionada", "arquivo atualizado",
-    "file updated", "file written", "file created",
+    "proposal added", "file updated", "file written", "file created",
 ]
 
 WRITE_REQUEST_KEYWORDS = [
-    "add to", "adicione", "adicionar", "escreva", "escrever",
-    "write to", "write in", "append", "create", "crie", "criar",
-    "salve", "salvar", "save", "registre", "registrar", "modify",
-    "modifique", "modificar", "update", "atualize", "atualizar",
+    "add to", "write to", "write in", "append", "create", "save",
+    "register", "modify", "update",
 ]
 
 
@@ -482,45 +478,45 @@ def _response_claims_write(response: str) -> bool:
 
 def run_agent(agent_name: str, user_message: str, model: str = None) -> str:
     """
-    Executa o loop ReAct completo para um agente.
+    Runs the complete ReAct loop for an agent.
 
-    1. Carrega o agente
-    2. Constrói o system prompt
-    3. Envia mensagem → LLM
-    4. Parseia resposta (TOOL ou DONE)
-    5. Se TOOL: executa, injeta resultado, repete
-    6. Se DONE: loga e retorna (with hallucination guard)
-    7. Se max_steps: retorna com aviso
+    1. Load the agent
+    2. Build the system prompt
+    3. Send message → LLM
+    4. Parse response (TOOL or DONE)
+    5. If TOOL: execute, inject result, repeat
+    6. If DONE: log and return (with hallucination guard)
+    7. If max_steps: return with warning
     """
-    # 1. Carregar agente
+    # 1. Load agent
     agent = load_agent(agent_name)
 
-    # 2. Identificar tools autorizadas
+    # 2. Identify authorized tools
     authorized_tools = parse_authorized_tools(agent.get("tools", ""))
 
-    # 3. Construir system prompt
+    # 3. Build system prompt
     system_prompt = build_system_prompt(agent, authorized_tools)
 
-    # 4. Iniciar conversa
+    # 4. Start conversation
     messages = [{"role": "user", "content": user_message}]
 
-    log_action(agent, f"- Recebeu mensagem: {user_message[:200]}...")
+    log_action(agent, f"- Received message: {user_message[:200]}...")
 
     # Track which tool categories were actually called
     called_write_tool = False
     hallucination_retries = 0
 
-    # 5. Loop ReAct
+    # 5. ReAct loop
     for step in range(1, MAX_STEPS + 1):
-        # Chamar LLM
+        # Call LLM
         llm_response = call_llm(system_prompt, messages, model)
 
-        if llm_response.startswith("ERRO:"):
+        if llm_response.startswith("ERROR:"):
             print(llm_response, file=sys.stderr)
-            log_action(agent, f"- ERRO no LLM (step {step}): {llm_response}")
+            log_action(agent, f"- ERROR in LLM (step {step}): {llm_response}")
             return llm_response
 
-        # Parsear resposta
+        # Parse response
         parsed = parse_llm_response(llm_response)
 
         if parsed["type"] == "DONE":
@@ -539,11 +535,11 @@ def run_agent(agent_name: str, user_message: str, model: str = None) -> str:
                     f"without calling a write tool. Retrying. (attempt {hallucination_retries})"
                 )
                 correction = (
-                    "ERRO: Você disse que realizou uma ação de escrita/modificação, "
-                    "mas NENHUMA tool de escrita foi chamada nesta sessão. "
-                    "Ler um arquivo (read_file) NÃO é o mesmo que modificá-lo. "
-                    "Você DEVE chamar write_file ou append_file com o conteúdo correto "
-                    "ANTES de responder DONE. Faça a chamada TOOL agora."
+                    "ERROR: You said you performed a write/modify action, "
+                    "but NO write tool was called in this session. "
+                    "Reading a file (read_file) is NOT the same as modifying it. "
+                    "You MUST call write_file or append_file with the correct content "
+                    "BEFORE responding DONE. Make the TOOL call now."
                 )
                 messages.append({"role": "assistant", "content": llm_response})
                 messages.append({"role": "user", "content": correction})
@@ -551,7 +547,7 @@ def run_agent(agent_name: str, user_message: str, model: str = None) -> str:
 
             log_action(
                 agent,
-                f"- Tarefa concluída (step {step})\n- Resposta: {final_response[:300]}..."
+                f"- Task completed (step {step})\n- Response: {final_response[:300]}..."
             )
             return final_response
 
@@ -567,25 +563,25 @@ def run_agent(agent_name: str, user_message: str, model: str = None) -> str:
                 f"- Step {step}: Tool={tool_name}, Args={json.dumps(tool_args, ensure_ascii=False)[:200]}"
             )
 
-            # Executar tool
+            # Execute tool
             tool_result = execute_tool(tool_name, tool_args, authorized_tools)
 
             log_action(
                 agent,
-                f"- Resultado tool '{tool_name}': {tool_result[:200]}..."
+                f"- Tool result '{tool_name}': {tool_result[:200]}..."
             )
 
-            # Adicionar à conversa
+            # Add to conversation
             messages.append({"role": "assistant", "content": llm_response})
             messages.append({
                 "role": "user",
-                "content": f"Resultado da tool '{tool_name}':\n{tool_result}"
+                "content": f"Tool result '{tool_name}':\n{tool_result}"
             })
 
-    # Max steps atingido
+    # Max steps reached
     timeout_msg = (
-        f"AVISO: Limite de {MAX_STEPS} passos atingido. "
-        f"Último estado da conversa retornado."
+        f"WARNING: Limit of {MAX_STEPS} steps reached. "
+        f"Last conversation state returned."
     )
-    log_action(agent, f"- TIMEOUT: {MAX_STEPS} passos atingidos")
+    log_action(agent, f"- TIMEOUT: {MAX_STEPS} steps reached")
     return timeout_msg
