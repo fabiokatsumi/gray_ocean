@@ -55,6 +55,12 @@
 - **Parameters:** `name` (name), `purpose` (mission), `tools` (list of tools), `personality` (optional)
 - **Unix analog:** `fork + mkdir`
 
+### `send_message`
+- **File:** `tools/send_message.py`
+- **Description:** Sends a message to another agent and returns its response. All traffic is logged to messages.md.
+- **Parameters:** `to` (target agent name), `message` (message to send)
+- **Unix analog:** `pipe` (|)
+
 ---
 
 ## Tools Created by Agents
